@@ -13,11 +13,11 @@ def writeErrorInfo(filePath,systemName,GroupID,GroupName):
     f.closed
 
 def writeXML(CaseData,rootPath):
-    root = etree.Element("XMLCaseData",version="1.0")
-    flag_group=0
-    flag_link=0
-    for eartheStation in CaseData.earthStationList:
 
+    flag_group=0
+
+    for eartheStation in CaseData.earthStationList:
+        root = etree.Element("XMLCaseData",version="1.0")
 
         stationObject=etree.SubElement(root, "Object",clsid = "EarthStation")
         stationName=etree.SubElement(stationObject, "Name")
@@ -36,21 +36,21 @@ def writeXML(CaseData,rootPath):
         stationName.text=str(eartheStation.groupID)
         flag_group+=1
 
-    GEOObject=etree.SubElement(root, "Object",clsid = "GEO")
-    stationName=etree.SubElement(GEOObject, "Name")
-    stationName.text=str(CaseData.sysName)
-    stationName=etree.SubElement(GEOObject, "Latitude")
-    stationName.text=str(0)
-    stationName=etree.SubElement(GEOObject, "Longitude")
-    stationName.text=str(CaseData.lon)
-    stationName=etree.SubElement(GEOObject, "Altitude")
-    stationName.text=str(35786.055)
-    stationName=etree.SubElement(GEOObject, "Beamwidth_in_deg")
-    stationName.text=str(5)
-    stationName=etree.SubElement(GEOObject, "GainFile")
-    stationName.text=str("GainReduction5.0.pattern")
+        GEOObject=etree.SubElement(root, "Object",clsid = "GEO")
+        stationName=etree.SubElement(GEOObject, "Name")
+        stationName.text=str(CaseData.sysName)
+        stationName=etree.SubElement(GEOObject, "Latitude")
+        stationName.text=str(0)
+        stationName=etree.SubElement(GEOObject, "Longitude")
+        stationName.text=str(CaseData.lon)
+        stationName=etree.SubElement(GEOObject, "Altitude")
+        stationName.text=str(35786.055)
+        stationName=etree.SubElement(GEOObject, "Beamwidth_in_deg")
+        stationName.text=str(5)
+        stationName=etree.SubElement(GEOObject, "GainFile")
+        stationName.text=str("GainReduction5.0.pattern")
 
-    for eartheStation in CaseData.earthStationList:
+        if len(eartheStation.linkList)==0:continue
         for link in eartheStation.linkList:
             linkObject=etree.SubElement(root, "Object",clsid = "Link")
             stationName=etree.SubElement(linkObject, "Name")
@@ -79,10 +79,14 @@ def writeXML(CaseData,rootPath):
             stationName.text=str(link.Otherloss_in_db)
             stationName=etree.SubElement(linkObject, "GroupID")
             stationName.text=str(eartheStation.groupID)
-            flag_link+=1
 
-    et=etree.ElementTree(root)
-    et.write(rootPath+CaseData.sysName+'.case',xml_declaration=True,pretty_print=True)
+
+
+        et=etree.ElementTree(root)
+        et.write(rootPath+str(CaseData.sysName)+'_'
+                 +str(eartheStation.siteName)+'_'
+                 +str(eartheStation.groupID)+
+                 '.case',xml_declaration=True,pretty_print=True)
 
 # 转化Emission designation为Float
 def valBandwidth(bandwidth,bwlist):
@@ -173,16 +177,6 @@ if __name__ == '__main__':
             siteLon=sysCase.lon
             siteAlt=0
             siteBeamWidth="%.1f"%(e_as_stn_Item[2])
-            # if e_as_stn_Item[2] ==None:
-            #     otherBeamwidth=cur.execute("SELECT bmwdth FROM main.e_as_stn "
-            #                                "WHERE stn_name = '%s' AND bmwdth is not NULL"%siteName).fetchone()
-            #     if otherBeamwidth!= None:siteBeamWidth=otherBeamwidth[0]
-            #     else:
-            #         siteBeamWidth=None
-            #         print(sysCase.sysName+','+siteName)
-            #         flag+=1
-            # else:
-            #     siteBeamWidth="%.1f"%(e_as_stn_Item[2])
 
             linkList=[]
             groupCase=earthStationItem(siteName,siteLat,siteLon,siteAlt,siteBeamWidth,polarType,linkList,groupKey)
@@ -191,6 +185,8 @@ if __name__ == '__main__':
             linkKeyList=cur.execute("SELECT * FROM main.emiss WHERE main.emiss.grp_id ='%d'"%groupKey).fetchall()
             bwlist=[]
             # 遍历Group的emission
+            max_emiss_value=0
+            LinkCase=None
             for linkItem in linkKeyList:
 
                 linkName=str(groupCase.siteName)+str(groupKey)
@@ -221,13 +217,15 @@ if __name__ == '__main__':
 
 
                 Otherloss_in_db=0.0
-                LinkCase=linkStationItem(linkName,networkName,Txeirp_in_dbw,Bandwidth_in_mhz,OverlapBw_in_mhz
-                 ,RxstationName,Rxfreq_in_mhz,Rxgain_in_db,Rxtemperature_in_kevin,Rxgt_in_dbk
-                 ,Pol_seperation_in_db,Otherloss_in_db,linkID)
+                if data_value>max_emiss_value:
+                    max_emiss_value=data_value
+                    LinkCase=linkStationItem(linkName,networkName,Txeirp_in_dbw,Bandwidth_in_mhz,OverlapBw_in_mhz
+                     ,RxstationName,Rxfreq_in_mhz,Rxgain_in_db,Rxtemperature_in_kevin,Rxgt_in_dbk
+                     ,Pol_seperation_in_db,Otherloss_in_db,linkID)
 
 
 
-                groupCase.linkList.append(LinkCase)
+            if LinkCase:groupCase.linkList.append(LinkCase)
             sysCase.earthStationList.append(groupCase)
             latIndex=latIndex+2
 
